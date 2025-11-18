@@ -5,4 +5,4 @@ version = "0.1.0"
 [dependencies]
 ex_lib = { version = "0.1.0", path = "./ex_lib" }
 
-[workspace]
+#[workspace]
