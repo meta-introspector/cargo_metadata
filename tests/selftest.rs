@@ -84,11 +84,16 @@ fn builder_interface() {
 
 #[test]
 fn error1() {
+    let manifest_path = current_dir().unwrap().join("foo");
+    let error = "error: the manifest-path must be a path to a Cargo.toml file";
+    let error_with_path = format!("{error}: `{}`", manifest_path.display());
+    // FIXME: does no harm but get rid of `error` and `error_with_path` once
+    // MSRV reaches 1.95.
+    let unstable_error = "error: manifest path `foo` does not exist";
     match MetadataCommand::new().manifest_path("foo").exec() {
-        Err(Error::CargoMetadata { stderr }) => assert_eq!(
-            stderr.trim(),
-            "error: the manifest-path must be a path to a Cargo.toml file"
-        ),
+        Err(Error::CargoMetadata { stderr }) => {
+            assert!([error, &error_with_path, unstable_error].contains(&stderr.trim()))
+        }
         _ => unreachable!(),
     }
 }
@@ -178,26 +183,35 @@ fn cargo_path() {
 //     }
 // }
 
-#[test]
-#[cfg(feature = "unstable")]
-fn build_dir() {
-    let metadata = MetadataCommand::new()
-        .no_deps()
-        .other_options(["-Zbuild-dir"].map(str::to_string))
-        .exec()
-        .unwrap();
-
-    assert!(&metadata.build_directory.is_some());
-    assert!(&metadata
-        .build_directory
-        .unwrap()
-        .ends_with("cargo_metadata/target"));
+fn cargo_version() -> semver::Version {
+    let output = std::process::Command::new("cargo")
+        .arg("-V")
+        .output()
+        .expect("Failed to exec cargo.");
+    let out = std::str::from_utf8(&output.stdout)
+        .expect("invalid utf8")
+        .trim();
+    let split: Vec<&str> = out.split_whitespace().collect();
+    assert!(split.len() >= 2, "cargo -V output is unexpected: {}", out);
+    let mut ver = semver::Version::parse(split[1]).expect("cargo -V semver could not be parsed");
+    // Don't care about metadata, it is awkward to compare.
+    ver.pre = semver::Prerelease::EMPTY;
+    ver.build = semver::BuildMetadata::EMPTY;
+    ver
 }
 
 #[test]
-#[cfg(feature = "unstable")]
-fn build_dir_disabled() {
+fn build_dir() {
     let metadata = MetadataCommand::new().no_deps().exec().unwrap();
-
-    assert!(&metadata.build_directory.is_none());
+    let ver = cargo_version();
+    let minimum = semver::Version::parse("1.91.0").unwrap();
+    if ver >= minimum {
+        assert!(&metadata.build_directory.is_some());
+        assert!(&metadata
+            .build_directory
+            .unwrap()
+            .ends_with("cargo_metadata/target"));
+    } else {
+        assert!(&metadata.build_directory.is_none());
+    }
 }

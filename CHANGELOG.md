@@ -20,7 +20,19 @@
 
 - n/a
 
-## [0.22.0] - TBD
+## [0.23.1] - 2025-11-11
+
+### Changed
+
+- Stabilized `build_directory`
+
+## [0.23.0] - 2025-09-27
+
+### Added
+
+- Added `FeatureName` and `PackageName` newtype wrappers.
+
+## [0.22.0] - 2025-08-18
 
 ### Added
 
